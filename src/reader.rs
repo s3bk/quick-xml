@@ -903,6 +903,23 @@ impl<B: BufRead> Reader<B> {
     pub fn into_underlying_reader(self) -> B {
         self.reader
     }
+
+    /// read until \n marker \n
+    pub fn read_until_marker<'b>(&mut self, buf: &'b mut Vec<u8>, marker: &[u8]) -> Result<Event<'b>> {
+        let mut buf_start = buf.len();
+        loop {
+            match read_until(&mut self.reader, b'\n', buf, &mut self.buf_position) {
+                Ok(0) => return Ok(Event::Eof),
+                Ok(n) => {
+                    if &buf[buf_start ..] == marker {
+                        return Ok(Event::Text(BytesText::from_escaped(&buf[.. buf_start])));
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+            buf_start = buf.len();
+        }
+    }
 }
 
 impl Reader<BufReader<File>> {
